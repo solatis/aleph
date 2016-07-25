@@ -10,7 +10,8 @@
     [manifold.deferred :as d]
     [manifold.stream :as s]
     [byte-streams :as bs]
-    [clojure.edn :as edn])
+    [clojure.edn :as edn]
+    [aleph.http.multipart :as multipart])
   (:import
     [java.io InputStream]
     [java.net URL URLEncoder UnknownHostException]))
@@ -419,7 +420,15 @@
   (fn [req]
     (let [start (System/currentTimeMillis)]
       (-> (client req)
-        (d/chain' #(assoc % :request-time (- (System/currentTimeMillis) start)))))))
+          (d/chain' #(assoc % :request-time (- (System/currentTimeMillis) start)))))))
+
+
+(defn wrap-multipart
+  [client]
+  (fn [req]
+    (if-let [multipart (:multipart req)]
+      (client (multipart/create-multipart-request req)))
+      (client req)))
 
 (defn parse-content-type
   "Parse `s` as an RFC 2616 media type."
@@ -524,8 +533,9 @@
   by default"
   [client]
   (let [client' (-> client
-                  wrap-exceptions
-                  wrap-request-timing)]
+                    wrap-multipart
+                    wrap-exceptions
+                    wrap-request-timing)]
     (fn [req]
       (if (:aleph.http.client/close req)
         (client req)

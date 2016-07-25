@@ -5,7 +5,6 @@
     [manifold.deferred :as d]
     [manifold.stream :as s]
     [aleph.http.core :as http]
-    [aleph.http.multipart :as multipart]
     [aleph.http.client-middleware :as middleware]
     [aleph.netty :as netty])
   (:import
@@ -313,12 +312,8 @@
               (when-not (.get (.headers req') "Connection")
                 (HttpHeaders/setKeepAlive req' keep-alive?))
 
-              ;; TODO: uncomment this once the multipart implementation is validated
-              (let [body (if-let [parts (comment (get req :multipart))]
-                           (multipart/encode-body parts)
-                           (get req :body))]
-                (netty/safe-execute ch
-                  (http/send-message ch true ssl? req' body)))))
+              (netty/safe-execute ch
+                (http/send-message ch true ssl? req' (:body req)))))
           requests)
 
         (s/on-closed responses

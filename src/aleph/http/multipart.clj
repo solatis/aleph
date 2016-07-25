@@ -65,20 +65,24 @@
       (.put 0 headers)
       (.put header-len body))))
 
-(defn encode-body
-  ([parts]
-    (encode-body (boundary) parts))
-  ([^String boundary parts]
-    (let [b (bs/to-byte-buffer boundary)
-          b-len (+ 2 (.length boundary))
-          ps (map #(-> % populate-part encode-part) parts)
-          boundaries-len (* (inc (count parts)) b-len)
-          part-len (reduce (fn [acc ^String p] (+ acc (.length p))) 0 ps)
-          buf (ByteBuffer/allocate (+ boundaries-len part-len))]
-      (.put buf 0 b)
-      (reduce (fn [idx part]
-                (let [p-len (.length ^String part)]
-                  (.put buf idx part)
-                  (.put buf (+ idx part-len) b)
-                  (+ idx part-len b-len))) b-len ps)
-      buf)))
+(defn create-multipart-request
+  ([req]
+   (if (:multipart req)
+     (let [parts (:multipart req)
+           boundary (boundary)
+           b (bs/to-byte-buffer boundary)
+           b-len (+ 2 (.length boundary))
+           ps (map #(-> % populate-part encode-part) parts)
+           boundaries-len (* (inc (count parts)) b-len)
+           part-len (reduce (fn [acc ^String p] (+ acc (.length p))) 0 ps)
+           buf (ByteBuffer/allocate (+ boundaries-len part-len))]
+       (.put buf 0 b)
+       (reduce (fn [idx part]
+                 (let [p-len (.length ^String part)]
+                   (.put buf idx part)
+                   (.put buf (+ idx part-len) b)
+                   (+ idx part-len b-len))) b-len ps)
+       (assoc req :body buf)))
+
+   ;; No multipart prov
+   req))
